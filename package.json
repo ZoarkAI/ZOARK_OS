@@ -1,0 +1,28 @@
+{
+  "name": "zoark-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZOARK OS - Agentic Workflow Engine",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build",
+    "db:migrate": "cd packages/database && npx prisma migrate dev",
+    "db:generate": "cd packages/database && npx prisma generate",
+    "db:studio": "cd packages/database && npx prisma studio",
+    "agents:dev": "cd apps/agents && uvicorn app.main:app --reload",
+    "web:dev": "cd apps/web && next dev"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "openapi-typescript": "^6.7.6",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

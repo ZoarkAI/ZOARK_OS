@@ -1,0 +1,61 @@
+# ── Core Framework ──────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+email-validator
+python-multipart
+python-dotenv
+
+# ── Database & Cache ────────────────────────────────────────────────────────
+asyncpg
+redis
+prisma
+
+# ── Authentication & Security ───────────────────────────────────────────────
+python-jose[cryptography]
+passlib[bcrypt]
+cryptography
+authlib
+itsdangerous
+
+# ── Email ───────────────────────────────────────────────────────────────────
+aiosmtplib
+
+# ── Scheduling ──────────────────────────────────────────────────────────────
+apscheduler
+
+# ── LLM Providers ───────────────────────────────────────────────────────────
+openai
+anthropic
+
+# ── CrewAI & LangChain (Agent Framework) ────────────────────────────────────
+crewai
+langchain
+langchain-openai
+langchain-anthropic
+langchain-community
+
+# ── Vector Database ─────────────────────────────────────────────────────────
+pinecone-client
+
+# ── Document Processing ─────────────────────────────────────────────────────
+PyPDF2
+
+# ── HTTP Client ─────────────────────────────────────────────────────────────
+httpx
+aiohttp
+
+# ── Testing ─────────────────────────────────────────────────────────────────
+pytest
+pytest-asyncio
+pytest-cov
+
+# ── Monitoring & Logging ────────────────────────────────────────────────────
+sentry-sdk[fastapi]
+structlog
+
+# ── Utilities ───────────────────────────────────────────────────────────────
+python-slugify
+duckduckgo-search
+wikipedia

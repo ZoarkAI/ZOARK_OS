@@ -1,0 +1,129 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Frontend Tests & Build
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Type check
+        working-directory: apps/web
+        run: pnpm tsc --noEmit
+
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm next lint || true
+
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+  # Backend Tests
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zoark_test
+          POSTGRES_USER: zoark
+          POSTGRES_PASSWORD: zoark
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
+        run: pnpm install
+
+      - name: Push database schema
+        working-directory: packages/database
+        run: npx prisma db push
+        env:
+          DATABASE_URL: postgresql://zoark:zoark@localhost:5432/zoark_test
+
+      - name: Install Python dependencies
+        working-directory: apps/agents
+        run: pip install -r requirements.txt
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-asyncio
+
+      - name: Run tests
+        working-directory: apps/agents
+        run: pytest tests/ -v
+        env:
+          DATABASE_URL: postgresql://zoark:zoark@localhost:5432/zoark_test
+          REDIS_URL: redis://localhost:6379
+
+  # Deploy to production
+  deploy:
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy Frontend to Vercel
+        run: echo "Deploy to Vercel"
+        # Add Vercel deployment command
+
+      - name: Deploy Backend to Railway
+        run: echo "Deploy to Railway"
+        # Add Railway deployment command

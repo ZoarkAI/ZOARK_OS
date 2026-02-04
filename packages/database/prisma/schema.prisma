@@ -1,0 +1,439 @@
+// ZOARK OS Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum TaskStatus {
+  DONE
+  ACTIVE
+  BACKLOG
+  GAP
+}
+
+enum InvoiceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum ApprovalStage {
+  LEGAL_REVIEW
+  FINANCE_CHECK
+  MANAGER_APPROVAL
+  EXECUTIVE_APPROVAL
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AgentAction {
+  TASK_STUCK_ALERT
+  TIMESHEET_REMINDER
+  APPROVAL_NUDGE
+  EMAIL_PARSED
+  INVOICE_PROCESSED
+}
+
+enum AgentStatus {
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+
+enum ProcessStage {
+  PLANNING
+  IN_PROGRESS
+  REVIEW
+  BLOCKED
+  COMPLETED
+}
+
+enum HealthStatus {
+  HEALTHY
+  AT_RISK
+  CRITICAL
+}
+
+enum RAGStatus {
+  PENDING
+  INDEXED
+  FAILED
+}
+
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+  YAHOO
+}
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  FAILED
+}
+
+// Models
+model Project {
+  id                String    @id @default(cuid())
+  name              String
+  description       String?
+  healthScore       Float     @default(0.0)
+  velocity          Float     @default(0.0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tasks             Task[]
+  invoices          Invoice[]
+  users             User[]
+  teamMembers       TeamMember[]
+  pipelineTemplates PipelineTemplate[]
+
+  @@index([healthScore])
+}
+
+model Task {
+  id            String        @id @default(cuid())
+  projectId     String
+  title         String
+  description   String?
+  status        TaskStatus    @default(BACKLOG)
+  contactPerson String?
+  peopleCount   Int           @default(0)
+  processStage  ProcessStage  @default(PLANNING)
+  healthStatus  HealthStatus  @default(HEALTHY)
+  lastUpdated   DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  detail        TaskDetail?
+  assignments   TaskAssignment[]
+
+  // Critical index for agent queries
+  @@index([status, lastUpdated])
+  @@index([projectId])
+  @@index([healthStatus])
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String?
+  timesheetStatus String    @default("pending")
+  githubUsername  String?
+  workingHours    String?
+  role            String    @default("member")
+  avatar          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  projects        Project[]
+  oauthAccounts   OAuthAccount[]
+  apiKeys         APIKey[]
+  customAgents    CustomAgent[]
+  agentExecutions AgentExecution[]
+
+  @@index([timesheetStatus])
+  @@index([email])
+  @@index([role])
+}
+
+model Invoice {
+  id            String          @id @default(cuid())
+  projectId     String
+  amount        Float
+  status        InvoiceStatus   @default(PENDING)
+  pdfUrl        String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  approvalSteps ApprovalStep[]
+
+  @@index([status])
+  @@index([projectId])
+}
+
+model ApprovalStep {
+  id            String         @id @default(cuid())
+  invoiceId     String
+  stage         ApprovalStage
+  requiredDocs  String[]
+  assigneeEmail String
+  status        ApprovalStatus @default(PENDING)
+  deadline      DateTime
+  lastNudgedAt  DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Critical index for nudge queries
+  @@index([status, deadline])
+  @@index([invoiceId])
+  @@index([assigneeEmail])
+}
+
+model AgentLog {
+  id        String       @id @default(cuid())
+  action    AgentAction
+  context   Json
+  timestamp DateTime     @default(now())
+  status    AgentStatus  @default(IN_PROGRESS)
+
+  @@index([timestamp])
+  @@index([action])
+}
+
+model TeamMember {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  workingHours  String?
+  role          String?
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  documents     TeamDocument[]
+  assignedTasks TaskAssignment[]
+  projects      Project[]
+
+  @@index([email])
+}
+
+model TeamDocument {
+  id            String    @id @default(cuid())
+  teamMemberId  String
+  name          String
+  type          String
+  url           String
+  uploadedAt    DateTime  @default(now())
+  teamMember    TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  @@index([teamMemberId])
+}
+
+model EmailAccount {
+  id           String    @id @default(cuid())
+  provider     EmailProvider
+  email        String    @unique
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  isConnected  Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  broadcasts   BroadcastEmail[]
+
+  @@index([provider])
+  @@index([email])
+}
+
+model TaskDetail {
+  id          String    @id @default(cuid())
+  taskId      String    @unique
+  contactPerson String?
+  peopleCount Int       @default(0)
+  processStage ProcessStage @default(PLANNING)
+  healthStatus HealthStatus @default(HEALTHY)
+  workHistory Json      @default("[]")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskAssignment {
+  id           String    @id @default(cuid())
+  taskId       String
+  teamMemberId String
+  assignedAt   DateTime  @default(now())
+  task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, teamMemberId])
+  @@index([taskId])
+  @@index([teamMemberId])
+}
+
+model PipelineTemplate {
+  id          String    @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stages      PipelineStage[]
+
+  @@index([projectId])
+}
+
+model PipelineStage {
+  id            String    @id @default(cuid())
+  templateId    String
+  name          String
+  order         Int
+  deliverables  Json      @default("[]")
+  assigneeEmail String
+  nudgeFrequency String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  template      PipelineTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model AgentSchedule {
+  id             String    @id @default(cuid())
+  agentType      String
+  cronExpression String
+  isActive       Boolean   @default(true)
+  lastRun        DateTime?
+  nextRun        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([agentType])
+  @@index([isActive])
+}
+
+model RAGDocument {
+  id        String    @id @default(cuid())
+  name      String
+  type      String
+  source    String?
+  url       String
+  content   String?
+  metadata  Json      @default("{}")
+  ragStatus RAGStatus @default(PENDING)
+  vectorId  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ragStatus])
+  @@index([createdAt])
+}
+
+model BroadcastEmail {
+  id            String    @id @default(cuid())
+  emailAccountId String
+  subject       String
+  body          String
+  recipients    Json      @default("[]")
+  status        BroadcastStatus @default(DRAFT)
+  scheduledFor  DateTime?
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  emailAccount  EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+// Authentication & OAuth Models
+model OAuthAccount {
+  id            String    @id @default(cuid())
+  userId        String
+  provider      String    // google, github, microsoft
+  email         String
+  accessToken   String
+  refreshToken  String?
+  expiresAt     DateTime?
+  isConnected   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([provider])
+}
+
+model OAuthState {
+  id            String    @id @default(cuid())
+  state         String    @unique
+  provider      String
+  userId        String
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([state])
+}
+
+model APIKey {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  provider      String    // openai, anthropic, huggingface, custom
+  endpoint      String?
+  encryptedKey  String
+  isActive      Boolean   @default(true)
+  lastUsed      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions    AgentExecution[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([provider])
+  @@index([isActive])
+}
+
+model CustomAgent {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  description   String
+  role          String
+  goal          String
+  backstory     String
+  llmProvider   String    // openai, anthropic, huggingface, custom
+  apiKeyId      String
+  tools         Json      @default("[]")
+  config        Json
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions    AgentExecution[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([llmProvider])
+}
+
+model AgentExecution {
+  id            String    @id @default(cuid())
+  agentId       String
+  userId        String
+  apiKeyId      String?
+  input         String
+  output        String?
+  status        String    // success, error, pending
+  tokensUsed    Int       @default(0)
+  costEstimate  Float     @default(0.0)
+  executedAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  agent         CustomAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKey        APIKey?   @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([status])
+  @@index([executedAt])
+}
