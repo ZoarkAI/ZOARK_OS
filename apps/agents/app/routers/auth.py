@@ -129,8 +129,8 @@ async def register(user_data: UserRegister):
                RETURNING "id", "name", "email", "role", "createdAt"''',
             user_id, user_data.name, user_data.email, hashed_password, "member"
         )
-    
-    return user
+
+    return dict(user)
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -1,8 +1,9 @@
 import asyncpg
-import os
 from contextlib import asynccontextmanager
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://zoark:zoark@localhost:5432/zoark")
+from app.config import get_settings
+
+DATABASE_URL = get_settings().database_url
 
 _pool: asyncpg.Pool | None = None
 
