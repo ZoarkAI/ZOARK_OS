@@ -21,9 +21,18 @@ _mock_store: Dict[str, Dict[str, Any]] = {}
 def _get_index():
     global _pinecone_index
     if _pinecone_index is None and settings.pinecone_api_key:
-        from pinecone import Pinecone
-        pc = Pinecone(api_key=settings.pinecone_api_key)
-        _pinecone_index = pc.Index(settings.pinecone_index_name)
+        try:
+            from pinecone import Pinecone
+            pc = Pinecone(api_key=settings.pinecone_api_key)
+            _pinecone_index = pc.Index(settings.pinecone_index_name)
+            logger.info(f"Connected to Pinecone index '{settings.pinecone_index_name}'")
+        except Exception as e:
+            logger.warning(
+                f"Pinecone index '{settings.pinecone_index_name}' not found or unreachable "
+                f"({e}). Falling back to in-memory mock store. "
+                f"Create the index on https://app.pinecone.io or set PINECONE_INDEX_NAME correctly."
+            )
+            _pinecone_index = None
     return _pinecone_index
 
 
