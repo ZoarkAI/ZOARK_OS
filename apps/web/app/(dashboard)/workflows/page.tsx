@@ -29,7 +29,7 @@ export default function WorkflowsPage() {
   const fetchWorkflows = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/workflows', {
+      const response = await fetch('http://localhost:8000/pipelines/', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });
       if (response.ok) {
@@ -45,7 +45,7 @@ export default function WorkflowsPage() {
 
   const handleCreateWorkflow = async (workflowConfig: any) => {
     try {
-      const response = await fetch('http://localhost:8000/workflows', {
+      const response = await fetch('http://localhost:8000/pipelines/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ export default function WorkflowsPage() {
     if (!confirm('Are you sure you want to delete this workflow?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/workflows/${workflowId}`, {
+      const response = await fetch(`http://localhost:8000/pipelines/${workflowId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
       });

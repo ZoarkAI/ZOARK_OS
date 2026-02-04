@@ -306,9 +306,12 @@ export default function PulsePage() {
       {/* ── AI Agent Control Panel ── */}
       <Card>
         <CardContent className="p-0">
-          <button
+          <div
             onClick={() => setAgentPanelOpen(!agentPanelOpen)}
-            className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-colors"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAgentPanelOpen(!agentPanelOpen); } }}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5 text-purple-400" />
@@ -324,7 +327,7 @@ export default function PulsePage() {
               </button>
               {agentPanelOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
             </div>
-          </button>
+          </div>
 
           {agentPanelOpen && (
             <div className="grid grid-cols-3 gap-3 p-4 border-t border-glass-border">

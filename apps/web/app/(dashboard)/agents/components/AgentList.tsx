@@ -10,10 +10,14 @@ interface Agent {
   name: string;
   description: string;
   role: string;
+  goal: string;
+  backstory: string;
   llmProvider: string;
+  apiKeyId: string;
+  tools: string[];
   isActive: boolean;
   createdAt: string;
-  tools: string[];
+  updatedAt: string;
 }
 
 interface AgentListProps {

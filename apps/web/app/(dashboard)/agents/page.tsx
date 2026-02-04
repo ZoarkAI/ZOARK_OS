@@ -171,7 +171,7 @@ export default function AgentsPage() {
             onDelete={handleDeleteAgent}
             onActivate={handleActivateAgent}
             onDeactivate={handleDeactivateAgent}
-            onSelect={setSelectedAgent}
+            onSelect={(agent) => setSelectedAgent(agent)}
           />
         )}
 

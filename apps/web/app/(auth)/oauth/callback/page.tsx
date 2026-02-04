@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -32,9 +32,8 @@ export default function OAuthCallbackPage() {
 
       try {
         const token = localStorage.getItem('access_token');
-        
+
         if (!token) {
-          // If no token, this is a login flow - redirect to login
           setStatus('error');
           setMessage('Please login first to connect OAuth accounts');
           setTimeout(() => router.push('/login'), 2000);
@@ -58,8 +57,7 @@ export default function OAuthCallbackPage() {
 
         setStatus('success');
         setMessage(`Successfully connected ${provider} account!`);
-        
-        // Redirect to settings after success
+
         setTimeout(() => router.push('/settings/oauth'), 2000);
       } catch (err: any) {
         setStatus('error');
@@ -80,7 +78,7 @@ export default function OAuthCallbackPage() {
               <p className="text-white text-lg">{message}</p>
             </>
           )}
-          
+
           {status === 'success' && (
             <>
               <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
@@ -88,7 +86,7 @@ export default function OAuthCallbackPage() {
               <p className="text-gray-400 mt-2">Redirecting...</p>
             </>
           )}
-          
+
           {status === 'error' && (
             <>
               <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
@@ -104,5 +102,22 @@ export default function OAuthCallbackPage() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20">
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
+            <p className="text-white text-lg">Processing authentication...</p>
+          </div>
+        </CardContent>
+      </Card>
+    }>
+      <OAuthCallbackInner />
+    </Suspense>
   );
 }
