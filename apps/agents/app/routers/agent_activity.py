@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import Optional, List
@@ -21,7 +22,7 @@ def row_to_agent_activity(row) -> dict:
         "action": row["action"],
         "status": row["status"],
         "timestamp": row["timestamp"],
-        "context": row["context"] or {},
+        "context": json.loads(row["context"]) if isinstance(row["context"], str) else (row["context"] or {}),
     }
 
 
