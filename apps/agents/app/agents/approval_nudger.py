@@ -31,9 +31,6 @@ class ApprovalNudgerAgent(BaseAgent):
         }
 
     async def find_overdue_approvals(self) -> List[Dict[str, Any]]:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        cooldown = now - timedelta(hours=24)
-
         async with get_conn() as conn:
             if self.approval_id:
                 rows = await conn.fetch(
@@ -43,9 +40,9 @@ class ApprovalNudgerAgent(BaseAgent):
                        JOIN "Project" p ON i."projectId" = p."id"
                        WHERE s."id" = $1
                          AND s."status" = 'PENDING'
-                         AND s."deadline" < $2
-                         AND (s."lastNudgedAt" IS NULL OR s."lastNudgedAt" < $3)''',
-                    self.approval_id, now, cooldown,
+                         AND s."deadline" < NOW()
+                         AND (s."lastNudgedAt" IS NULL OR s."lastNudgedAt" < NOW() - INTERVAL '24 hours')''',
+                    self.approval_id,
                 )
             else:
                 rows = await conn.fetch(
@@ -54,9 +51,8 @@ class ApprovalNudgerAgent(BaseAgent):
                        JOIN "Invoice" i ON s."invoiceId" = i."id"
                        JOIN "Project" p ON i."projectId" = p."id"
                        WHERE s."status" = 'PENDING'
-                         AND s."deadline" < $1
-                         AND (s."lastNudgedAt" IS NULL OR s."lastNudgedAt" < $2)''',
-                    now, cooldown,
+                         AND s."deadline" < NOW()
+                         AND (s."lastNudgedAt" IS NULL OR s."lastNudgedAt" < NOW() - INTERVAL '24 hours')''',
                 )
 
         return [
@@ -78,7 +74,10 @@ class ApprovalNudgerAgent(BaseAgent):
         ]
 
     async def send_nudge(self, approval: Dict[str, Any]) -> Dict[str, Any]:
-        days_overdue = (datetime.now(timezone.utc).replace(tzinfo=None) - approval['deadline']).days
+        deadline = approval['deadline']
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        days_overdue = (datetime.now(timezone.utc) - deadline).days
         urgency = self.calculate_urgency(days_overdue)
 
         self.logger.info(

@@ -31,24 +31,23 @@ class TaskMonitorAgent(BaseAgent):
         }
 
     async def find_stuck_tasks(self) -> List[Dict[str, Any]]:
-        threshold = (datetime.now(timezone.utc) - timedelta(hours=48)).replace(tzinfo=None)
-
         async with get_conn() as conn:
             if self.task_id:
                 rows = await conn.fetch(
                     '''SELECT t.*, p."name" as project_name
                        FROM "Task" t
                        JOIN "Project" p ON t."projectId" = p."id"
-                       WHERE t."id" = $1 AND t."status" = 'ACTIVE' AND t."lastUpdated" < $2''',
-                    self.task_id, threshold,
+                       WHERE t."id" = $1 AND t."status" = 'ACTIVE'
+                         AND t."lastUpdated" < NOW() - INTERVAL '48 hours' ''',
+                    self.task_id,
                 )
             else:
                 rows = await conn.fetch(
                     '''SELECT t.*, p."name" as project_name
                        FROM "Task" t
                        JOIN "Project" p ON t."projectId" = p."id"
-                       WHERE t."status" = 'ACTIVE' AND t."lastUpdated" < $1''',
-                    threshold,
+                       WHERE t."status" = 'ACTIVE'
+                         AND t."lastUpdated" < NOW() - INTERVAL '48 hours' ''',
                 )
 
         return [
@@ -63,7 +62,10 @@ class TaskMonitorAgent(BaseAgent):
         ]
 
     async def send_alert(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        stuck_days = (datetime.now(timezone.utc).replace(tzinfo=None) - task['lastUpdated']).days
+        last_updated = task['lastUpdated']
+        if last_updated.tzinfo is None:
+            last_updated = last_updated.replace(tzinfo=timezone.utc)
+        stuck_days = (datetime.now(timezone.utc) - last_updated).days
 
         self.logger.warning(
             f"Task {task['id']} ({task['title']}) stuck for {stuck_days} days"

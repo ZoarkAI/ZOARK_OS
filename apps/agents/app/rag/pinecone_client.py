@@ -51,9 +51,13 @@ class PineconeClient:
 
         # Cosine-similarity fallback against mock store
         if not _mock_store:
+            logger.warning(
+                "RAG search returned MOCK data — no documents indexed and PINECONE_API_KEY is not set. "
+                "Results below are placeholders, not real data."
+            )
             return [
-                {"id": "doc-1", "score": 0.95, "metadata": {"text": "Sample invoice document content...", "type": "invoice", "amount": 50000.00, "date": "2024-01-15"}},
-                {"id": "doc-2", "score": 0.87, "metadata": {"text": "Contract agreement for project...", "type": "contract", "date": "2024-01-10"}},
+                {"id": "doc-1", "score": 0.95, "metadata": {"text": "Sample invoice document content...", "type": "invoice", "amount": 50000.00, "date": "2024-01-15", "_mock": True}},
+                {"id": "doc-2", "score": 0.87, "metadata": {"text": "Contract agreement for project...", "type": "contract", "date": "2024-01-10", "_mock": True}},
             ]
 
         scored = []

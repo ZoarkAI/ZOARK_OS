@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
     # ── App ───────────────────────────────────────────────────────────
     app_name: str = "ZOARK OS API"
-    debug: bool = True
+    debug: bool = False
 
     # CORS — the frontend origin(s) the API will accept.
     # Comma-separate multiple origins: "http://localhost:3000,https://zoark.vercel.app"

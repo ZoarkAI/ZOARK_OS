@@ -39,7 +39,7 @@ class EmbeddingsService:
             response = await client.embeddings.create(model=self.model, input=text)
             return response.data[0].embedding
 
-        logger.debug(f"Mock embedding for: {text[:50]}…")
+        logger.warning("Using MOCK embeddings — set OPENAI_API_KEY for real vectors")
         return [random.random() for _ in range(1536)]
 
     async def generate_batch_embeddings(self, texts: List[str]) -> List[List[float]]:
@@ -48,7 +48,7 @@ class EmbeddingsService:
             response = await client.embeddings.create(model=self.model, input=texts)
             return [d.embedding for d in response.data]
 
-        logger.debug(f"Mock batch embeddings for {len(texts)} texts")
+        logger.warning(f"Using MOCK batch embeddings for {len(texts)} texts — set OPENAI_API_KEY for real vectors")
         return [await self.generate_embedding(t) for t in texts]
 
 

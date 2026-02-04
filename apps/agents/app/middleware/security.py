@@ -79,35 +79,41 @@ class InputSanitizationMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting middleware"""
-    
+    """Redis-backed rate limiting middleware — survives restarts and works across instances."""
+
     def __init__(self, app, requests_per_minute: int = 120):
         super().__init__(app)
         self.rpm = requests_per_minute
-        self._hits = {}
-    
+        self._redis = None
+
+    async def _get_redis(self):
+        if self._redis is None:
+            import redis.asyncio as aioredis
+            from app.config import get_settings
+            self._redis = aioredis.from_url(get_settings().redis_url)
+        return self._redis
+
     async def dispatch(self, request: Request, call_next) -> Response:
         ip = request.client.host if request.client else "0.0.0.0"
-        now = time.time()
-        cutoff = now - 60.0
-        
-        # Get hits for this IP
-        if ip not in self._hits:
-            self._hits[ip] = []
-        
-        hits = [t for t in self._hits[ip] if t > cutoff]
-        
-        if len(hits) >= self.rpm:
-            logger.warning(f"Rate limit exceeded for IP: {ip}")
-            return Response(
-                content='{"detail": "Rate limit exceeded"}',
-                status_code=429,
-                media_type="application/json"
-            )
-        
-        hits.append(now)
-        self._hits[ip] = hits
-        
+        key = f"ratelimit:{ip}"
+
+        try:
+            redis = await self._get_redis()
+            current = await redis.incr(key)
+            if current == 1:
+                await redis.expire(key, 60)
+            if current > self.rpm:
+                logger.warning(f"Rate limit exceeded for IP: {ip}")
+                return Response(
+                    content='{"detail": "Rate limit exceeded. Please try again later."}',
+                    status_code=429,
+                    media_type="application/json",
+                    headers={"Retry-After": "60"},
+                )
+        except Exception as e:
+            # If Redis is unreachable, fail open (don't block requests)
+            logger.warning(f"Rate limiter Redis error: {e}")
+
         return await call_next(request)
 
 

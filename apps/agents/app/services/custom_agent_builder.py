@@ -125,21 +125,16 @@ class CustomAgentBuilder:
             from langchain_openai import ChatOpenAI
             from langchain_anthropic import ChatAnthropic
             
-            # Decrypt API key
-            from cryptography.fernet import Fernet
-            import os
-            ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key())
-            cipher_suite = Fernet(ENCRYPTION_KEY)
-            decrypted_key = cipher_suite.decrypt(api_key["encryptedKey"].encode()).decode()
-            
+            # Decrypt API key using the shared cipher (keyed from settings)
+            from app.routers.api_keys import decrypt_key
+            decrypted_key = decrypt_key(api_key["encryptedKey"])
+
             # Initialize LLM based on provider
             if agent["llmProvider"] == "openai":
-                llm = ChatOpenAI(api_key=decrypted_key, model="gpt-4")
+                llm = ChatOpenAI(api_key=decrypted_key, model="gpt-4o")
             elif agent["llmProvider"] == "anthropic":
-                llm = ChatAnthropic(api_key=decrypted_key, model="claude-3-sonnet-20240229")
+                llm = ChatAnthropic(api_key=decrypted_key, model="claude-sonnet-4-5-20250929")
             elif agent["llmProvider"] == "custom":
-                # Use custom endpoint
-                from langchain_openai import ChatOpenAI
                 llm = ChatOpenAI(
                     api_key=decrypted_key,
                     base_url=api_key["endpoint"],
@@ -166,7 +161,7 @@ class CustomAgentBuilder:
             )
             
             # Create and execute crew
-            crew = Crew(agents=[crew_agent], tasks=[task], verbose=True)
+            crew = Crew(agents=[crew_agent], tasks=[task], verbose=False)
             result = crew.kickoff()
             
             return {

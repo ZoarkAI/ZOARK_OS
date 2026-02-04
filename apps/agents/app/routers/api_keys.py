@@ -168,27 +168,30 @@ async def test_api_key(key_id: str, current_user = Depends(get_current_user)):
     if not key:
         raise HTTPException(status_code=404, detail="API key not found")
     
-    # Test the API key based on provider
+    # Test the API key based on provider — keys are never assigned to globals
     try:
         decrypted_key = decrypt_key(key["encryptedKey"])
-        
+
         if key["provider"] == "openai":
-            import openai
-            openai.api_key = decrypted_key
-            openai.Model.list()
+            from openai import OpenAI
+            client = OpenAI(api_key=decrypted_key)
+            client.models.list()
         elif key["provider"] == "anthropic":
             import anthropic
             client = anthropic.Anthropic(api_key=decrypted_key)
-            client.messages.count_tokens(model="claude-3-sonnet-20240229", messages=[])
+            # Lightweight call: list available models
+            client.models.list()
         elif key["provider"] == "huggingface":
-            import requests
-            headers = {"Authorization": f"Bearer {decrypted_key}"}
-            response = requests.get("https://huggingface.co/api/whoami", headers=headers)
-            if response.status_code != 200:
-                raise Exception("Invalid HuggingFace token")
-        
+            import httpx
+            async with httpx.AsyncClient() as http:
+                resp = await http.get(
+                    "https://huggingface.co/api/whoami",
+                    headers={"Authorization": f"Bearer {decrypted_key}"},
+                )
+                resp.raise_for_status()
+
         return {"status": "valid", "message": "API key is valid"}
-    
+
     except Exception as e:
         return {"status": "invalid", "message": str(e)}
 
