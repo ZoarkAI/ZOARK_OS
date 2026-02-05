@@ -203,34 +203,30 @@ export default function OAuthSettingsPage() {
       </div>
 
       {/* Info Box */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="pt-6">
-          <h3 className="font-semibold text-blue-800 mb-2">Why connect accounts?</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• <strong>Google:</strong> Send emails via Gmail, access Google Calendar, and sync contacts</li>
-            <li>• <strong>GitHub:</strong> Access repository data for development workflows</li>
-            <li>• <strong>Microsoft:</strong> Send emails via Outlook and access Microsoft 365 data</li>
-          </ul>
-        </CardContent>
-      </Card>
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-blue-300 mb-2">Why connect accounts?</h3>
+        <ul className="text-xs text-blue-200/70 space-y-1">
+          <li>· <strong>Google</strong> — Send emails via Gmail, access Google Calendar, and sync contacts</li>
+          <li>· <strong>GitHub</strong> — Access repository data for development workflows</li>
+          <li>· <strong>Microsoft</strong> — Send emails via Outlook and access Microsoft 365 data</li>
+        </ul>
+      </div>
 
       {/* Setup Instructions */}
-      <Card className="bg-yellow-50 border-yellow-200">
-        <CardContent className="pt-6">
-          <h3 className="font-semibold text-yellow-800 mb-2">Setup Required</h3>
-          <p className="text-sm text-yellow-700 mb-2">
-            OAuth connections require configuration in your environment:
-          </p>
-          <ul className="text-sm text-yellow-700 space-y-1 font-mono">
-            <li>GOOGLE_CLIENT_ID=your_google_client_id</li>
-            <li>GOOGLE_CLIENT_SECRET=your_google_client_secret</li>
-            <li>GITHUB_CLIENT_ID=your_github_client_id</li>
-            <li>GITHUB_CLIENT_SECRET=your_github_client_secret</li>
-            <li>MICROSOFT_CLIENT_ID=your_microsoft_client_id</li>
-            <li>MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret</li>
-          </ul>
-        </CardContent>
-      </Card>
+      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-yellow-300 mb-2">Setup Required</h3>
+        <p className="text-xs text-yellow-200/70 mb-2">
+          OAuth connections require the following env vars to be set:
+        </p>
+        <ul className="text-xs text-yellow-200/70 space-y-0.5 font-mono">
+          <li>GOOGLE_CLIENT_ID=your_google_client_id</li>
+          <li>GOOGLE_CLIENT_SECRET=your_google_client_secret</li>
+          <li>GITHUB_CLIENT_ID=your_github_client_id</li>
+          <li>GITHUB_CLIENT_SECRET=your_github_client_secret</li>
+          <li>MICROSOFT_CLIENT_ID=your_microsoft_client_id</li>
+          <li>MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret</li>
+        </ul>
+      </div>
     </div>
   );
 }
