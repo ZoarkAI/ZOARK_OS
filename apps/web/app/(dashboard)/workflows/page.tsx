@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Play, Edit2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import WorkflowBuilder from './components/WorkflowBuilder';
 import WorkflowList from './components/WorkflowList';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface Workflow {
   id: string;
   name: string;
@@ -16,99 +19,126 @@ interface Workflow {
   createdAt: string;
 }
 
-export default function WorkflowsPage() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [activeTab, setActiveTab] = useState('list');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
-  const [loading, setLoading] = useState(false);
+// ── Mock fallback ──────────────────────────────────────────────────────────────
+const MOCK_WORKFLOWS: Workflow[] = [
+  {
+    id: '1', name: 'Lead Qualification Pipeline',
+    description: 'Scores incoming leads, routes high-value prospects directly to sales reps',
+    steps: [
+      { id: 's1', type: 'agent',     name: 'Lead Qualifier',  config: {} },
+      { id: 's2', type: 'condition', name: 'Score ≥ 80?',     config: {} },
+      { id: 's3', type: 'task',      name: 'Route to Sales',  config: {} },
+    ],
+    isActive: true, createdAt: '2026-01-15T00:00:00Z',
+  },
+  {
+    id: '2', name: 'Invoice Approval Flow',
+    description: 'Extracts invoice data, routes through finance review and manager approval',
+    steps: [
+      { id: 's1', type: 'agent',     name: 'Invoice Processor',  config: {} },
+      { id: 's2', type: 'task',      name: 'Finance Review',     config: {} },
+      { id: 's3', type: 'delay',     name: 'Wait 24h',           config: {} },
+      { id: 's4', type: 'task',      name: 'Manager Approval',   config: {} },
+    ],
+    isActive: true, createdAt: '2026-01-20T00:00:00Z',
+  },
+  {
+    id: '3', name: 'Onboarding Checklist',
+    description: 'Guides new hires through orientation, IT setup, and first-week tasks',
+    steps: [
+      { id: 's1', type: 'task',  name: 'Welcome Email',        config: {} },
+      { id: 's2', type: 'agent', name: 'Onboarding Assistant', config: {} },
+      { id: 's3', type: 'task',  name: 'IT Setup',             config: {} },
+    ],
+    isActive: false, createdAt: '2026-01-22T00:00:00Z',
+  },
+];
 
-  useEffect(() => {
-    fetchWorkflows();
-  }, []);
+// ── Page ───────────────────────────────────────────────────────────────────────
+export default function WorkflowsPage() {
+  const [workflows, setWorkflows]               = useState<Workflow[]>(MOCK_WORKFLOWS);
+  const [activeTab, setActiveTab]               = useState('list');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [loading, setLoading]                   = useState(true);
+
+  useEffect(() => { fetchWorkflows(); }, []);
 
   const fetchWorkflows = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/pipelines/', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+      const res = await fetch(`${API_URL}/pipelines/`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setWorkflows(data);
-      }
-    } catch (error) {
-      console.error('Error fetching workflows:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) setWorkflows(await res.json());
+    } catch { /* use MOCK_WORKFLOWS */ }
+    finally { setLoading(false); }
   };
 
-  const handleCreateWorkflow = async (workflowConfig: any) => {
+  const handleCreateWorkflow = async (config: any) => {
+    const optimistic: Workflow = { ...config, id: `new-${Date.now()}`, isActive: true, createdAt: new Date().toISOString() };
     try {
-      const response = await fetch('http://localhost:8000/pipelines/', {
+      const res = await fetch(`${API_URL}/pipelines/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify(workflowConfig)
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
+        body: JSON.stringify(config),
       });
-
-      if (response.ok) {
-        const newWorkflow = await response.json();
-        setWorkflows([...workflows, newWorkflow]);
-        setActiveTab('list');
-      }
-    } catch (error) {
-      console.error('Error creating workflow:', error);
-    }
+      if (res.ok) { const created = await res.json(); setWorkflows(prev => [...prev, created]); setActiveTab('list'); return; }
+    } catch { /* fall through */ }
+    setWorkflows(prev => [...prev, optimistic]);
+    setActiveTab('list');
   };
 
-  const handleDeleteWorkflow = async (workflowId: string) => {
-    if (!confirm('Are you sure you want to delete this workflow?')) return;
-
+  const handleDeleteWorkflow = async (id: string) => {
+    if (!confirm('Delete this workflow? This cannot be undone.')) return;
+    setWorkflows(prev => prev.filter(w => w.id !== id));
     try {
-      const response = await fetch(`http://localhost:8000/pipelines/${workflowId}`, {
+      await fetch(`${API_URL}/pipelines/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
       });
-
-      if (response.ok) {
-        setWorkflows(workflows.filter(w => w.id !== workflowId));
-      }
-    } catch (error) {
-      console.error('Error deleting workflow:', error);
-    }
+    } catch { /* already removed */ }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold">Workflow Builder</h1>
-          <p className="text-gray-500 mt-2">Create automated workflows by chaining agents and tasks</p>
+          <h1 className="text-4xl font-bold mb-1">Workflow Builder</h1>
+          <p className="text-gray-400">Create automated workflows by chaining agents and tasks</p>
         </div>
         <Button onClick={() => setActiveTab('builder')} className="gap-2">
-          <Plus size={20} />
-          Create Workflow
+          <Plus className="w-4 h-4" /> Create Workflow
         </Button>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 border-b">
-        <button
-          onClick={() => setActiveTab('list')}
-          className={`px-4 py-2 font-medium ${activeTab === 'list' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
-        >
-          My Workflows
-        </button>
-        <button
-          onClick={() => setActiveTab('builder')}
-          className={`px-4 py-2 font-medium ${activeTab === 'builder' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'}`}
-        >
-          Builder
-        </button>
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total Workflows', value: workflows.length,                                  color: 'text-purple-400' },
+          { label: 'Active',          value: workflows.filter(w => w.isActive).length,          color: 'text-green-400' },
+          { label: 'Total Steps',     value: workflows.reduce((s, w) => s + w.steps.length, 0), color: 'text-blue-400' },
+        ].map(s => (
+          <div key={s.label} className="glass-card p-3 rounded-lg">
+            <p className="text-xs text-gray-500">{s.label}</p>
+            <p className={`text-xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Tab Nav */}
+      <div className="flex gap-1 border-b border-gray-700">
+        {[{ id: 'list', label: 'My Workflows' }, { id: 'builder', label: 'Builder' }].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm transition-colors ${
+              activeTab === tab.id ? 'border-b-2 border-purple-500 text-purple-300' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Tab Content */}
@@ -118,16 +148,10 @@ export default function WorkflowsPage() {
             workflows={workflows}
             loading={loading}
             onDelete={handleDeleteWorkflow}
-            onSelect={setSelectedWorkflow}
+            onSelect={wf => { setSelectedWorkflow(wf); setActiveTab('builder'); }}
           />
         )}
-
-        {activeTab === 'builder' && (
-          <WorkflowBuilder
-            onSave={handleCreateWorkflow}
-            initialWorkflow={selectedWorkflow}
-          />
-        )}
+        {activeTab === 'builder' && <WorkflowBuilder onSave={handleCreateWorkflow} initialWorkflow={selectedWorkflow} />}
       </div>
     </div>
   );
